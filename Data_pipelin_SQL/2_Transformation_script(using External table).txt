@@ -1,0 +1,102 @@
+        ########## Transform data files with the CREATE EXTERNAL TABLE AS SELECT statement ##########
+
+
+To use CETAS expressions, you must create the following types of object in a database for either a serverless or dedicated SQL pool. When using a serverless SQL pool, create these objects in a custom database (created using the CREATE DATABASE statement), not the built-in database.
+
+
+
+1st - External data source:
+
+CREATE EXTERNAL DATA SOURCE files
+WITH (
+    LOCATION = 'https://mydatalake.blob.core.windows.net/data/files/'
+);
+
+
+An alternative approach is to encapsulate a credential in the external data source so that it can be used to access file data without granting all users permissions to read it directly:
+
+
+CREATE DATABASE SCOPED CREDENTIAL storagekeycred
+WITH
+    IDENTITY='SHARED ACCESS SIGNATURE',  
+    SECRET = 'sv=xxx...';
+
+CREATE EXTERNAL DATA SOURCE secureFiles
+WITH (
+    LOCATION = 'https://mydatalake.blob.core.windows.net/data/secureFiles/'
+    CREDENTIAL = storagekeycred
+);
+
+
+
+2nd - External file format:
+
+The CETAS statement creates a table with its data stored in files. You must specify the format of the files you want to create as an external file format.
+
+To create an external file format, use the CREATE EXTERNAL FILE FORMAT statement, as shown in this example:
+
+CREATE EXTERNAL FILE FORMAT ParquetFormat
+WITH (
+        FORMAT_TYPE = PARQUET,
+        DATA_COMPRESSION = 'org.apache.hadoop.io.compress.SnappyCodec'
+    );
+
+Note:You can also create external file formats for other types of file
+
+https://learn.microsoft.com/en-us/sql/t-sql/statements/create-external-file-format-transact-sql?view=sql-server-ver16&tabs=delimited
+
+3rd - Using the CETAS statement:
+
+Scenario:
+After creating an external data source and external file format, you can use the CETAS statement to transform data and stored the results in an external table.
+
+suppose the source data you want to transform consists of sales orders in comma-delimited text files that are stored in a folder in a data lake. You want to filter the data to include only orders that are marked as "special order", and save the transformed data as Parquet files in a different folder in the same data lake. You could use the same external data source for both the source and destination folders as shown in this example:
+
+CREATE EXTERNAL TABLE SpecialOrders
+    WITH (
+        -- details for storing results
+        LOCATION = 'special_orders/',
+        DATA_SOURCE = files,
+        FILE_FORMAT = ParquetFormat
+    )
+AS
+SELECT OrderID, CustomerName, OrderTotal
+FROM
+    OPENROWSET(
+        -- details for reading source files
+        BULK 'sales_orders/*.csv',
+        DATA_SOURCE = 'files',
+        FORMAT = 'CSV',
+        PARSER_VERSION = '2.0',
+        HEADER_ROW = TRUE
+    ) AS source_data
+WHERE OrderType = 'Special Order';
+
+or
+
+CREATE EXTERNAL TABLE SpecialOrders
+    WITH (
+        -- details for storing results
+        LOCATION = 'special_orders/',
+        DATA_SOURCE = files,
+        FILE_FORMAT = ParquetFormat
+    )
+AS
+SELECT OrderID, CustomerName, OrderTotal
+FROM
+    OPENROWSET(
+        -- details for reading source files
+        BULK 'https://mystorage.blob.core.windows.net/data/sales_orders/*.csv',
+        FORMAT = 'CSV',
+        PARSER_VERSION = '2.0',
+        HEADER_ROW = TRUE
+    ) AS source_data
+WHERE OrderType = 'Special Order';
+
+
+If you no longer need the external table containing the transformed data, you can drop it from the database by using the DROP EXTERNAL TABLE statement, as shown here:
+
+DROP EXTERNAL TABLE SpecialOrders;
+
+
+

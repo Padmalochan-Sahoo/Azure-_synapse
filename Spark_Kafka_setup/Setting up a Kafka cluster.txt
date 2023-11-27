@@ -1,0 +1,98 @@
+                    ------ Set up  Kafka cluster on a VM -------
+
+1st connect to your ubuntu machien, and then update it
+#$ sudo apt get update
+post that we will be installing jdk
+#$ sudo apt install -y default-jdk    (installing java on this instance)
+#$java -version
+
+2nd we have to install kafka,so go to https://kafka.apache.org/downloads 
+and then get the link address for the 1st binary file (https://downloads.apache.org/kafka/3.6.0/kafka_2.12-3.6.0.tgz)
+
+#$sudo wget https://downloads.apache.org/kafka/3.6.0/kafka_2.12-3.6.0.tgz
+
+then we have to unzzip it as it is a tar file
+#$ tar -xvf https://downloads.apache.org/kafka/3.6.0/kafka_2.12-3.6.0.tgz
+once it is done then we have to move the tar file inside the opt directory
+#$ sudo mv kafka_2.12-3.5.2 /opt/kafka
+
+Then create two more directories one for kakfak and another for zookeper
+
+#$ sudo mkdir -p /data/kafka
+#$ sudo mkdir -p /data/zookeper (zookeper used for service ingnitazation ,,it keep tracks of the node,topics.. Basically keep track of the metadata)
+
+Now we have to give the permission to the currient user
+
+#$ sudo chown -R ubuntu:ubuntu /data/*
+
+Next update the propertis and zookeper file.It is always imp to start the zookeper 1st and the kafka
+
+#$cd /opt/kafka/
+
+#$ cd config/
+
+#$ sudo nano zookeeper.properties  (this file need to be updated,inside this 1st we need to update the data directory,means anyfile that is related to zookeeper will be stored inside this...We had created to directory before i.e /data/kafka  & /data/zookeper.....so inside this zookeeper properties dataDir = /data/zookeeper... Also we can set port also if we want to do this)
+
+Next update the server.properties file
+
+#$ sudo nano server.properties  (inside this we have to update the log directory.It is going to store the log data,,we had created a data directory already,update that one.
+log.dirs = /data/kafka,,leave rest all as default ..save and exit.
+
+
+Then next start the zookeeper 1st,for that go to the bin directory of kafka as it hold all the bash files.
+
+#$ /opt/kafka$ cd bin/
+#$ /opt/kafka/bin$ - 
+
+Now we want to start the zookeeper so we have to run the zookeeper-server-start.sh file,and we have to specify the properties file as a arggument for the zookeeper and this file is present inside config directory
+
+./zookeeper-server-start.sh ../config/zookeeper.properties
+
+now your zookeeper has started.
+
+Open a new terminal and ssh to your machine
+
+#$ cd /opt/kafka/bin 
+
+#$ /opt/kafka/bin$ ./kafka-server-start.sh ../config/kafka.properties
+
+
+Now our zookeepr is running and kafka is running
+
+open another terminal connect to your machine
+
+Create a topic,to do that 1st we have to call the kafka-topic.sh file
+
+#$ /opt/kafka/bin/kafka-topics.sh --create --topic Topic1 --bootstrap-server localhost:9092
+(Topic1 - is the topic name,,, bootstrap-server  - it will look for the hostname and port number)
+
+Next produce some massages for that go to 
+#$ /opt/kafka/bin/kafka-cons here you will find the producer bash file (kafka-console-producer.sh)
+
+
+#$ /opt/kafka/bin/kafka-console-producer.sh --topic Topic1 --bootstrap-server localhost:9092
+>
+(it is ready to accept massage,,now what ever u will write it will be populated at the consumer end)
+
+Open another terminal for calling the consumer
+
+#$ /opt/kafka/bin/kafka-console-consumer.sh --topic Topic1 --from-beginning --bootstrap-server localhost:9092
+
+
+simmilalrly we can create multiple topics inside a cluster and to check how many topics are there in
+
+#$ /opt/kafka/bin/kafka-topics.sh --list --bootstrap-server localhost:9092
+Delete topics - 
+#$ /opt/kafka/bin/kafka-topics.sh --delete--bootstrap-server localhost:9092 --topic Topic1
+
+
+
+AWS - MSK
+AZURE - EVENT HUBS
+GCP - 
+
+
+
+
+
+

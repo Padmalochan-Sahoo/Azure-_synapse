@@ -1,0 +1,95 @@
+          ################## Create external database objects #####################
+
+
+Sometimes we may want to create a custom database that contains some objects that make it easier to work with external data in the data lake that you need to query frequently.
+
+Creating a database :- 
+
+CREATE DATABASE SalesDB
+    COLLATE Latin1_General_100_BIN2_UTF8
+
+Creating an external data source :-
+
+we can use OPENROWSET with BULK to read/query file data from our own DB, but if we plan to query data in the same location frequently, it's more efficient to define an external data source that references that location. For example, the following code creates a data source named files for the hypothetical 
+
+https://mydatalake.blob.core.windows.net/data/files/ folder:
+
+
+CREATE EXTERNAL DATA SOURCE files
+WITH (
+    LOCATION = 'https://mydatalake.blob.core.windows.net/data/files/'
+)
+
+One benefit of an external data source, is that you can simplify an OPENROWSET query to use the combination of the data source and the relative path to the folders or files you want to query:
+
+SELECT *
+FROM
+    OPENROWSET(
+        BULK 'orders/*.csv',
+        DATA_SOURCE = 'files',
+        FORMAT = 'csv',
+        PARSER_VERSION = '2.0'
+    ) AS orders
+
+The BULK parameter is used to specify the relative path for all .csv files in the orders folder, which is a subfolder of the files folder referenced by the data source.
+
+Another benefit of using a data source is that we can assign a credential for the data source to use when accessing the underlying storage, enabling you to provide access to data through SQL without permitting users to access the data directly in the storage account.
+
+CREATE DATABASE SCOPED CREDENTIAL sqlcred
+WITH
+    IDENTITY='SHARED ACCESS SIGNATURE',  
+    SECRET = 'sv=xxx...';
+GO
+
+CREATE EXTERNAL DATA SOURCE secureFiles
+WITH (
+    LOCATION = 'https://mydatalake.blob.core.windows.net/data/secureFiles/'
+    CREDENTIAL = sqlcred
+);
+GO
+
+Note :  https://learn.microsoft.com/en-us/azure/synapse-analytics/sql/develop-storage-files-storage-access-control?tabs=user-identity
+
+
+
+                 ********** Creating an external file format *************
+
+While external data sources simplifies the code needed to access usinf OPENROWSET function we still need to provide format detail,which may include mulitple settings for delimited text files.We can encapsulate them by creating an external file format.
+
+
+CREATE EXTERNAL FILE FORMAT CsvFormat
+    WITH (
+        FORMAT_TYPE = DELIMITEDTEXT,
+        FORMAT_OPTIONS(
+            FIELD_TERMINATOR = ',',
+            STRING_DELIMITER = '"'
+        )
+    );
+
+
+
+
+
+
+           $$$$$$$$$$$$$$ Creating an external table $$$$$$$$$$$$$$$
+
+When we need to perform a lot of analysis or reporting from files in the data lake, using the OPENROWSET function can result in complex code that includes data sources and file paths. To simplify access to the data, we can encapsulate the files in an external table; which users and reporting applications can query using a standard SQL SELECT statement just like any other database table. 
+
+To create an external table, use the CREATE EXTERNAL TABLE statement, specifying the column schema as for a standard table, and including a WITH clause specifying the external data source, relative path, and external file format for your data.
+
+CREATE EXTERNAL TABLE dbo.products
+(
+    product_id INT,
+    product_name VARCHAR(20),
+    list_price DECIMAL(5,2)
+)
+WITH
+(
+    DATA_SOURCE = files,
+    LOCATION = 'products/*.csv',
+    FILE_FORMAT = CsvFormat
+);
+
+
+-- query the table
+SELECT * FROM dbo.products;
