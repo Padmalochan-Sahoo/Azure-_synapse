@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "257b2173-f3ce-4cfc-9513-9948d8781003"
+				"spark.autotune.trackingId": "98c9608e-fe85-4c64-8e4e-0e2bc7712532"
 			}
 		},
 		"metadata": {
@@ -330,7 +330,8 @@
 				"source": [
 					"# XML Data type\r\n",
 					"\r\n",
-					"#python3/pyspark3 code here\r\n",
+					"#python3\r\n",
+					"\r\n",
 					"import xml.etree.ElementTree as ET\r\n",
 					"import pandas as pd\r\n",
 					"\r\n",
