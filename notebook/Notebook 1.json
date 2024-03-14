@@ -1,0 +1,310 @@
+{
+	"name": "Notebook 1",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "mypool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"runAsWorkspaceSystemIdentity": false,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "9a45676b-2568-4e77-95c3-c3536172594d"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"enableDebugMode": false,
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/e03dc4c9-77b3-425b-827d-10499e260db9/resourceGroups/Project_2024/providers/Microsoft.Synapse/workspaces/synapse202/bigDataPools/mypool",
+				"name": "mypool",
+				"type": "Spark",
+				"endpoint": "https://synapse202.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/mypool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net",
+					"authHeader": null
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"extraHeader": null
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"from pyspark.sql.functions import *\r\n",
+					"from pyspark.sql.functions import *\r\n",
+					"\r\n",
+					"orchestra = spark.read.format('json')\\\r\n",
+					".option('Header',True)\\\r\n",
+					".option('multiline',True)\\\r\n",
+					".load('abfss://mc-pratap@mynewstorage202.dfs.core.windows.net/mc-topaq/orchestra.json')\r\n",
+					"\r\n",
+					" orchestra.show()"
+				],
+				"execution_count": 129
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"orchestra.printSchema()"
+				],
+				"execution_count": 130
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def struct_fil(nested_df):\r\n",
+					"    struct_list = [((),nested_df)]\r\n",
+					"\r\n",
+					"    final_list = []\r\n",
+					"\r\n",
+					"    while len(struct_list) > 0:\r\n",
+					"        parents,df = struct_list.pop()\r\n",
+					"\r\n",
+					"        flat_cols = [col('.'.join(parents + (c[0],))).alias('_'.join(parents + (c[0],))) for c in df.dtypes if c[1][:6] != 'struct']\r\n",
+					"\r\n",
+					"        struct_cols = [c[0] for c in df.dtypes if c[1][:6] == 'struct']\r\n",
+					"\r\n",
+					"        final_list.extend(flat_cols)\r\n",
+					"\r\n",
+					"        for i in struct_cols:\r\n",
+					"            new_df = df.select(i + '.*')\r\n",
+					"\r\n",
+					"            struct_list.append((parents + (i,) , new_df))\r\n",
+					"\r\n",
+					"    return nested_df.select(final_list)                "
+				],
+				"execution_count": 150
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def flat_array(df):\r\n",
+					"    arr_list = [c[0] for c in df.dtypes if c[1][:5] == 'array']\r\n",
+					"\r\n",
+					"    while len(arr_list) > 0:\r\n",
+					"        for c in arr_list:\r\n",
+					"            df = df.withColumn(c,explode_outer(c))\r\n",
+					"        df = struct_fil(df)\r\n",
+					"        arr_list = [c[0] for c in df.dtypes if c[1][:5] == 'array']\r\n",
+					"\r\n",
+					"    return df        \r\n",
+					""
+				],
+				"execution_count": 151
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"nested_df = flat_array(orchestra)"
+				],
+				"execution_count": 152
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"# nested_df.show(10) \r\n",
+					"nested_df.printSchema()"
+				],
+				"execution_count": 155
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"orchestra.printSchema()"
+				],
+				"execution_count": 156
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def extract_struct(nested_json):\r\n",
+					"    struct_l = [((),nested_json)]\r\n",
+					"\r\n",
+					"    final_l = []\r\n",
+					"\r\n",
+					"    while len(struct_l)>0:\r\n",
+					"        parents,df = struct_l.pop()\r\n",
+					"\r\n",
+					"        new_l = [col('.'.join(parents + (c[0],))).alias('_'.join(parents + (c[0],))) for c in df.dtype if c[1][:6] != 'struct']\r\n",
+					"        \r\n",
+					"        struct_c = [c[0] for c in df.dtypes if c[1][:6] == 'struct']\r\n",
+					"\r\n",
+					"        final_l.append(struct_c)\r\n",
+					"\r\n",
+					"        for i in final_l:\r\n",
+					"            tdf = df.select(i+'.*')\r\n",
+					"            struct_l.append((parents+(i,),tdf)\r\n",
+					"\r\n",
+					"    return nested_df.select(final_l)        \r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					""
+				],
+				"execution_count": 191
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"def final_list(df):\r\n",
+					"    arra_c = [c[0] for c in df.dtypes if c[1][:5] == 'array']\r\n",
+					"\r\n",
+					"    while len(arra_c) > 0:\r\n",
+					"        for c in arra_c:\r\n",
+					"            df = df.withColumn(c,explode_outer(c))\r\n",
+					"\r\n",
+					"        df = extract_struct(df)\r\n",
+					"        arra_c = [c[0] for c in df.dtypes if c[1][:5] == 'array']\r\n",
+					"\r\n",
+					"    return df    \r\n",
+					"\r\n",
+					"            "
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				]
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				]
+			}
+		]
+	}
+}
