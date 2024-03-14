@@ -18,7 +18,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "eb9c32b4-9dcc-4d8f-9ad9-f1a318034f91"
+				"spark.autotune.trackingId": "257b2173-f3ce-4cfc-9513-9948d8781003"
 			}
 		},
 		"metadata": {
@@ -290,6 +290,26 @@
 				"source": [
 					"# Pandas function to handel nested Json\r\n",
 					"\r\n",
+					"import json\r\n",
+					"import pandas as pd\r\n",
+					"from pandas import json_normalize\r\n",
+					"\r\n",
+					"with open('FIle/file_path/path.json','r') as file:\r\n",
+					"    data = json.load(file)\r\n",
+					"\r\n",
+					"df = pd.json_normalize(data['programs'])\r\n",
+					"\r\n",
+					"\r\n",
+					"concerts_normalize = pd.json_normalize(data['programs'],'concerts',['id','programID','orchestra','season'])\r\n",
+					"\r\n",
+					"works_normalize = pd.json_normalize(data['programs'],'works',['id','programID','orchestra','season'])\r\n",
+					"\r\n",
+					"#works_normalize.head()\r\n",
+					"\r\n",
+					"\r\n",
+					"soloists_normalize = pd.json_normalize(works_normalize.to_dict(orient='records'),'soloists',['id','programID','orchestra','season'])\r\n",
+					"soloists_normalize.head(1)\r\n",
+					"\r\n",
 					""
 				],
 				"execution_count": 1
@@ -308,7 +328,34 @@
 					}
 				},
 				"source": [
-					""
+					"# XML Data type\r\n",
+					"\r\n",
+					"#python3/pyspark3 code here\r\n",
+					"import xml.etree.ElementTree as ET\r\n",
+					"import pandas as pd\r\n",
+					"\r\n",
+					"data = ET.parse('/content/orchestra.xml')\r\n",
+					"root = data.getroot()\r\n",
+					"#root\r\n",
+					"\r\n",
+					"def xml_parse(element):\r\n",
+					"  item = {}\r\n",
+					"  for child in element:\r\n",
+					"    if child.tag not in item:\r\n",
+					"      item[child.tag]=[]\r\n",
+					"    if list(child):\r\n",
+					"      item[child.tag].append(xml_parse(child))\r\n",
+					"    else:\r\n",
+					"      item[child.tag]=child.text\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					"  return item\r\n",
+					"\r\n",
+					"data_xml = [xml_parse(program) for program in root.findall('.//program')]\r\n",
+					"\r\n",
+					"df = pd.json_normalize(data_xml)\r\n",
+					"df.head()"
 				],
 				"execution_count": null
 			}
