@@ -13,7 +13,7 @@
 				"spark.dynamicAllocation.enabled": "false",
 				"spark.dynamicAllocation.minExecutors": "2",
 				"spark.dynamicAllocation.maxExecutors": "2",
-				"spark.autotune.trackingId": "2e18aa50-fb0c-494a-91bc-ec37842376dd"
+				"spark.autotune.trackingId": "ac9b7ac7-cdd1-4855-972a-8810a10a5738"
 			}
 		},
 		"metadata": {
@@ -31,6 +31,24 @@
 		"cells": [
 			{
 				"cell_type": "code",
+				"source": [
+					"df = pd.read.format('csv')"
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
 				"source": [
 					""
 				],
