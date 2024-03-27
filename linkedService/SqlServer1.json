@@ -1,0 +1,23 @@
+{
+	"name": "SqlServer1",
+	"properties": {
+		"annotations": [],
+		"type": "SqlServer",
+		"typeProperties": {
+			"connectionString": "Integrated Security=True;Data Source=DESKTOP-V6UDQ07\\MSSQLSERVER01;Initial Catalog=BikeStores",
+			"userName": "Padmalochan Sahoo",
+			"password": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "AzureKeyVault1",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "pass"
+			}
+		},
+		"connectVia": {
+			"referenceName": "IntegrationRuntime-sh",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}
