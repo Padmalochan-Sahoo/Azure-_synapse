@@ -1,0 +1,440 @@
+{
+	"name": "Notebook 2",
+	"properties": {
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "mypool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2",
+				"spark.autotune.trackingId": "523622f0-070d-4765-928f-13ac9714f46b"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"enableDebugMode": false,
+			"kernelspec": {
+				"name": "synapse_pyspark",
+				"display_name": "Synapse PySpark"
+			},
+			"language_info": {
+				"name": "python"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/e03dc4c9-77b3-425b-827d-10499e260db9/resourceGroups/Project_2024/providers/Microsoft.Synapse/workspaces/synapse202/bigDataPools/mypool",
+				"name": "mypool",
+				"type": "Spark",
+				"endpoint": "https://synapse202.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/mypool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "3.3",
+				"nodeCount": 3,
+				"cores": 4,
+				"memory": 28,
+				"automaticScaleJobs": false
+			},
+			"sessionKeepAliveTimeout": 30
+		},
+		"cells": [
+			{
+				"cell_type": "code",
+				"source": [
+					"# from pyspark.sql import SparkSession\r\n",
+					"from pyspark.sql.types import StructType, StructField, StringType, TimestampType\r\n",
+					"\r\n",
+					"# Create a SparkSession\r\n",
+					"# spark = SparkSession.builder \\\r\n",
+					"#     .appName(\"Create DataFrame from login_details\") \\\r\n",
+					"#     .getOrCreate()\r\n",
+					"\r\n",
+					"# Define the schema for the DataFrame\r\n",
+					"schema = StructType([\r\n",
+					"    StructField(\"times\", StringType(), True),\r\n",
+					"    StructField(\"status\", StringType(), True)\r\n",
+					"])\r\n",
+					"\r\n",
+					"# Sample data\r\n",
+					"data = [\r\n",
+					"    ('10:00:00', 'on'),\r\n",
+					"    ('10:01:00', 'on'),\r\n",
+					"    ('10:02:00', 'on'),\r\n",
+					"    ('10:03:00', 'off'),\r\n",
+					"    ('10:04:00', 'on'),\r\n",
+					"    ('10:05:00', 'on'),\r\n",
+					"    ('10:06:00', 'off'),\r\n",
+					"    ('10:07:00', 'off'),\r\n",
+					"    ('10:08:00', 'off'),\r\n",
+					"    ('10:09:00', 'on'),\r\n",
+					"    ('10:10:00', 'on'),\r\n",
+					"    ('10:11:00', 'on'),\r\n",
+					"    ('10:12:00', 'on'),\r\n",
+					"    ('10:13:00', 'off'),\r\n",
+					"    ('10:14:00', 'off'),\r\n",
+					"    ('10:15:00', 'on'),\r\n",
+					"    ('10:16:00', 'off'),\r\n",
+					"    ('10:17:00', 'off')\r\n",
+					"]\r\n",
+					"\r\n",
+					"# Create DataFrame\r\n",
+					"df = spark.createDataFrame(data, schema)\r\n",
+					"\r\n",
+					"# Show the DataFrame\r\n",
+					"# df.show()\r\n",
+					""
+				],
+				"execution_count": 44
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"df.createOrReplaceTempView('mytable')\r\n",
+					"\r\n",
+					"df1 = spark.sql('select * from mytable')\r\n",
+					"# df1.show()\r\n",
+					"# df1.explain()"
+				],
+				"execution_count": 45
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "sparksql"
+					},
+					"collapsed": false
+				},
+				"source": [
+					"%%sql\r\n",
+					"with cte1 as (\r\n",
+					"select distinct first_value(times) over(partition by grp order by grp,times) as first_logon,\r\n",
+					"last_value(times) over(partition by grp order by grp,times\r\n",
+					"range between unbounded preceding  and unbounded following) as last_logon from(\r\n",
+					"select *,rn-row_number() over(order by times) as grp\r\n",
+					"from\r\n",
+					"(select * ,\r\n",
+					"row_number() over(order by times) as rn\r\n",
+					"from mytable) x\r\n",
+					"where status = 'on') y),\r\n",
+					"\r\n",
+					"cte2 as ( select first_logon,lead(times)over(order by times) as log_off\r\n",
+					"                from mytable left join cte1 on\r\n",
+					"                        mytable.times=cte1.last_logon),\r\n",
+					"cte3 as (select *from cte2\r\n",
+					"               where first_logon is not null)\r\n",
+					"               \r\n",
+					"select * from cte3;\r\n",
+					"\r\n",
+					"-- where status = 'on';"
+				],
+				"execution_count": 50
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"customer_dim_data = [\r\n",
+					"\r\n",
+					"(1,'manish','arwal','india','N','2022-09-15','2022-09-25'),\r\n",
+					"(2,'vikash','patna','india','Y','2023-08-12',None),\r\n",
+					"(3,'nikita','delhi','india','Y','2023-09-10',None),\r\n",
+					"(4,'rakesh','jaipur','india','Y','2023-06-10',None),\r\n",
+					"(5,'ayush','NY','USA','Y','2023-06-10',None),\r\n",
+					"(1,'manish','gurgaon','india','Y','2022-09-25',None),\r\n",
+					"]\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					"\r\n",
+					"customer_schema= ['id','name','city','country','active','effective_start_date','effective_end_date']\r\n",
+					"\r\n",
+					"customer_dim_df = spark.createDataFrame(data= customer_dim_data,schema=customer_schema)\r\n",
+					"\r\n",
+					"sales_data = [\r\n",
+					"\r\n",
+					"(1,1,'manish','2023-01-16','gurgaon','india',380),\r\n",
+					"(77,1,'manish','2023-03-11','bangalore','india',300),\r\n",
+					"(12,3,'nikita','2023-09-20','delhi','india',127),\r\n",
+					"(54,4,'rakesh','2023-08-10','jaipur','india',321),\r\n",
+					"(65,5,'ayush','2023-09-07','mosco','russia',765),\r\n",
+					"(89,6,'rajat','2023-08-10','jaipur','india',321)\r\n",
+					"]\r\n",
+					"\r\n",
+					"sales_schema = ['sales_id', 'customer_id','customer_name', 'sales_date', 'food_delivery_address','food_delivery_country', 'food_cost']\r\n",
+					"\r\n",
+					"sales_df = spark.createDataFrame(data=sales_data,schema=sales_schema)\r\n",
+					"\r\n",
+					"\r\n",
+					""
+				],
+				"execution_count": 51
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"customer_dim_df.show()\r\n",
+					"sales_df.show()"
+				],
+				"execution_count": 53
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"joined_data = customer_dim_df.join(sales_df,customer_dim_df['id']==sales_df['customer_id'],'left')"
+				],
+				"execution_count": 88
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"display(joined_data)"
+				],
+				"execution_count": 89
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"from pyspark.sql.functions import *\r\n",
+					"new_record = joined_data.where( (col('food_delivery_address') != col('city'))  & (col('active')=='Y') )\\\r\n",
+					".withColumn('active',lit('Y'))\\\r\n",
+					".withColumn('efective_start_date',col('sales_date'))\\\r\n",
+					".withColumn('effective_end_date',lit(None))\\\r\n",
+					".select('customer_id','name',col('food_delivery_address').alias('City'),\\\r\n",
+					"'food_delivery_country','active','efective_start_date','effective_end_date')\r\n",
+					"\r\n",
+					"\r\n",
+					"new_record.show()"
+				],
+				"execution_count": 67
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"old_records = joined_data.where((col('food_delivery_address') != col('city'))  & (col('active')=='Y'))\\\r\n",
+					".withColumn('active',lit('N'))\\\r\n",
+					".withColumn('effective_end_date',col('sales_date'))\\\r\n",
+					".select('customer_id','name',col('food_delivery_address').alias('City'),\\\r\n",
+					"'food_delivery_country','active','effective_start_date','effective_end_date')\r\n",
+					"old_records.show()\r\n",
+					"\r\n",
+					""
+				],
+				"execution_count": 80
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"new_cx_df = sales_df.join(customer_dim_df,sales_df.customer_id==customer_dim_df.id,'leftanti')\\\r\n",
+					".withColumn('active',lit('Y'))\\\r\n",
+					".withColumn('effective_start_date',col('sales_date'))\\\r\n",
+					".withColumn('effective_end_date',lit('None'))\\\r\n",
+					".select('customer_id','customer_name','food_delivery_address',\\\r\n",
+					"'food_delivery_country','active','effective_start_date','effective_end_date')\r\n",
+					"\r\n",
+					"new_cx_df.show()\r\n",
+					""
+				],
+				"execution_count": 85
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"final_record = customer_dim_df.union(new_record).union(old_records).union(new_cx_df)\r\n",
+					"final_record.orderBy('id').show()"
+				],
+				"execution_count": 87
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					""
+				],
+				"execution_count": null
+			}
+		]
+	}
+}
